@@ -106,6 +106,7 @@ namespace AlienPAK
             preview.OnReplaceRequested += ReplaceSelectedFile;
             preview.OnDeleteRequested += DeleteSelectedFile;
             preview.OnExportAllRequested += ExportAllFiles;
+            preview.OnImportAllRequested += ImportAllFiles;
             preview.OnPortRequested += PortSelectedFile;
             preview.ShowFunctionButtons(PAKFunction.NONE, LaunchMode, false);
             preview.ShowLevelSelect(LaunchMode != PAKType.NONE && LaunchMode != PAKType.ANIMATIONS && LaunchMode != PAKType.UI, LaunchMode);
@@ -386,6 +387,116 @@ namespace AlienPAK
             }
             Cursor.Current = Cursors.Default;
         }
+
+        /* Import all files inside a folder into the current PAK. Only files with identical filename + folder structure will be imported. */
+        private void ImportAllFiles() {
+            Cursor.Current = Cursors.WaitCursor;
+            FolderBrowserDialog FolderToImportFrom = new FolderBrowserDialog();
+            if (FolderToImportFrom.ShowDialog() == DialogResult.OK) {
+                string selectedPath = FolderToImportFrom.SelectedPath;
+                IEnumerable<string> files = Directory.EnumerateFiles(selectedPath, "*_*", SearchOption.AllDirectories);
+
+                if (0 < files.Count()) {
+                    var test = pak;
+                    foreach (string absolutFilePath in files) {
+                        string relativeFilePath = absolutFilePath.Replace(selectedPath + "\\", "");
+                        string pakFilePath = relativeFilePath.Replace(".dds", ".tga.dds");
+
+                        if (pak.Contents.Contains(pakFilePath)) {
+                            // do import for this file
+                            this.executeSingleFileImport(absolutFilePath, relativeFilePath, pakFilePath);
+                        }
+                    }
+                }
+
+                MessageBox.Show("Successfully imported all files from" + selectedPath, "Import complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+            Cursor.Current = Cursors.Default;
+        }
+
+        /* Finds a TreeNode recursively by the given full path of the file */
+        private TreeNode findRecursiveTreeNodeByPath(TreeNodeCollection nodes, string fullPath) {
+            foreach (TreeNode node in nodes) {
+                if (node.FullPath == fullPath) {
+                    return node;
+                }
+
+                // recursive search
+                TreeNode foundNode = findRecursiveTreeNodeByPath(node.Nodes, fullPath);
+                if (foundNode != null) {
+                    return foundNode;
+                }
+            }
+
+            return null;
+        }
+
+        /* Executes an import for a single file. Code taken from @see this.ReplaceSelectedFile() */
+        private void executeSingleFileImport(string absoluteFilePath, string relativeFilePath, string pakFilePath) {
+            TreeNode currentTreeNode = this.findRecursiveTreeNodeByPath(FileTree.Nodes, pakFilePath);
+
+            TreeItemType nodeType = ((TreeItem)currentTreeNode.Tag).Item_Type;
+            string nodeVal = ((TreeItem)currentTreeNode.Tag).String_Value;
+
+            switch (nodeType) {
+                case TreeItemType.EXPORTABLE_FILE:
+                    //TODO: refactor
+                    // Not sure how models are handeled currently
+                    /*if (pak.Type == PAKType.MODELS) {
+                        Models.CS2 cs2 = ((Models)pak.File).Entries.FirstOrDefault(o => o.Name.Replace('\\', '/') == nodeVal.Replace('\\', '/'));
+                        ModelEditor modelEditor = new ModelEditor(cs2, textures, texturesGlobal, materials, shaders, shadersIDX);
+                        modelEditor.FormClosed += ModelEditor_FormClosed;
+                        modelEditor.Show();
+                        break;
+                    }*/
+
+                    Cursor.Current = Cursors.WaitCursor;
+                    try {
+                        switch (pak.Type) {
+                            case PAKType.ANIMATIONS:
+                            case PAKType.UI:
+                            case PAKType.CHR_INFO:
+                                ((PAK2)pak.File).Entries.FirstOrDefault(o => o.Filename.Replace('\\', '/') == nodeVal.Replace('\\', '/')).Content = File.ReadAllBytes(absoluteFilePath);
+                                pak.File.Save();
+                                break;
+                            case PAKType.TEXTURES:
+                                Textures.TEX4 texture = ((Textures)pak.File).Entries.FirstOrDefault(o => o.Name.Replace('\\', '/') == nodeVal.Replace('\\', '/'));
+                                if (Path.GetExtension(absoluteFilePath).ToUpper() == ".DDS") {
+                                    byte[] content = File.ReadAllBytes(absoluteFilePath);
+                                    Textures.TEX4.Part part = texture?.tex_HighRes?.Content != null ? texture.tex_HighRes : texture?.tex_LowRes?.Content != null ? texture.tex_LowRes : null;
+                                    part = content?.ToTEX4Part(out texture.Format, part);
+                                    if (part == null) {
+                                        MessageBox.Show("Please select a DX10 DDS image!\nIf you have converted this DDS yourself, you've converted it wrong - try using a tool like Nvidia Texture Tools Exporter.\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        break;
+                                    }
+                                    if (texture?.tex_HighRes?.Content != null)
+                                        texture.tex_HighRes = part;
+                                    else
+                                        texture.tex_LowRes = part;
+                                    SaveTexturesAndUpdateMaterials((Textures)pak.File, new Materials(extraPath));
+                                    break;
+                                }
+                                //TODO: implement this!!!! (into import new above too)
+                                MessageBox.Show("PNG/JPG image import conversion is not currently supported!\nAffected file: " + relativeFilePath, "WIP", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                                break;
+                                ScratchImage img = TexHelper.Instance.LoadFromWICFile(absoluteFilePath, WIC_FLAGS.FORCE_RGB).GenerateMipMaps(TEX_FILTER_FLAGS.DEFAULT, 10); /* Was using 11, but gives remainders - going for 10 */
+                                ScratchImage imgDecom = img.Compress(DXGI_FORMAT.BC7_UNORM, TEX_COMPRESS_FLAGS.BC7_QUICK, 0.5f); //TODO use baseFormat
+                                imgDecom.SaveToDDSFile(DDS_FLAGS.FORCE_DX10_EXT, absoluteFilePath + ".DDS");
+                                break;
+                            default:
+                                MessageBox.Show("This PAK type does not support file importing!\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                        }
+                    } catch (Exception ex) {
+                        MessageBox.Show(ex.ToString() + "\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    Cursor.Current = Cursors.Default;
+                    UpdateSelectedFilePreview();
+                    break;
+            }
+        }
+
 
         /* Show window to port the selected file to another level */
         PortContent portPopup = null;
