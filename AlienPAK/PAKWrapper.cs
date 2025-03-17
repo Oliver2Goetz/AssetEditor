@@ -204,7 +204,8 @@ namespace AlienPAK
                     case PAKType.UI:
                     case PAKType.CHR_INFO:
                     case PAKType.TEXTURES:
-                        return PAKFunction.CAN_EXPORT_FILES | PAKFunction.CAN_IMPORT_FILES | PAKFunction.CAN_REPLACE_FILES | PAKFunction.CAN_DELETE_FILES | PAKFunction.CAN_EXPORT_ALL;
+                        return PAKFunction.CAN_EXPORT_FILES | PAKFunction.CAN_IMPORT_FILES | PAKFunction.CAN_REPLACE_FILES | PAKFunction.CAN_DELETE_FILES | PAKFunction.CAN_EXPORT_ALL | PAKFunction.CAN_IMPORT_ALL;
+                        ;
                     default:
                         return PAKFunction.NONE;
                 }
@@ -235,5 +236,6 @@ namespace AlienPAK
         CAN_REPLACE_FILES = 4,
         CAN_DELETE_FILES = 8,
         CAN_EXPORT_ALL = 16,
+        CAN_IMPORT_ALL = 32,
     }
 }

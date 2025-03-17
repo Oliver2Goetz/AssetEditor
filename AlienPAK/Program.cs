@@ -70,6 +70,9 @@ namespace AlienPAK
             else
             {
                 SharedData.pathToAI = Environment.CurrentDirectory;
+#if DEBUG
+                SharedData.pathToAI = @"F:/SteamLibrary/steamapps/common/Alien Isolation";
+#endif
             }
 
             //Verify location

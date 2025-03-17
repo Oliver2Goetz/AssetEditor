@@ -66,6 +66,7 @@
                 <StackPanel Margin="10">
                     <Button x:Name="importBtn" Click="ImportBtn">Import New File</Button>
                     <Button x:Name="exportAllBtn" Click="ExportAll" Margin="0 5 0 0">Export All</Button>
+                    <Button x:Name="importAllBtn" Click="ImportAll" Margin="0 5 0 0">Import All</Button>
                 </StackPanel>
             </GroupBox>
         </StackPanel>

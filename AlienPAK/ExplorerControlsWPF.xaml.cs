@@ -28,6 +28,7 @@ namespace AlienPAK
         public Action OnPortRequested;
         public Action OnReplaceRequested;
         public Action OnExportAllRequested;
+        public Action OnImportAllRequested;
 
         public bool FilePreviewVisible
         {
@@ -126,6 +127,7 @@ namespace AlienPAK
 
             importBtn.Visibility = FlagToVisibility(function, PAKFunction.CAN_IMPORT_FILES);
             exportAllBtn.Visibility = FlagToVisibility(function, PAKFunction.CAN_EXPORT_ALL);
+            importAllBtn.Visibility = FlagToVisibility(function, PAKFunction.CAN_IMPORT_ALL);
             archiveUtilitiesGroup.Visibility = FlagToVisibility(function, PAKFunction.CAN_IMPORT_FILES | PAKFunction.CAN_EXPORT_FILES);
         }
         private Visibility FlagToVisibility(PAKFunction function, PAKFunction flag, bool? hasSelectedFile = null)
@@ -157,6 +159,9 @@ namespace AlienPAK
         private void ExportAll(object sender, RoutedEventArgs e)
         {
             OnExportAllRequested?.Invoke();
+        }
+        private void ImportAll(object sender, RoutedEventArgs e) {
+            OnImportAllRequested?.Invoke();
         }
         private void LevelSelected(object sender, EventArgs e)
         {
