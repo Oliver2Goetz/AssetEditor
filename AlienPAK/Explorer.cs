@@ -396,20 +396,24 @@ namespace AlienPAK
                 string selectedPath = FolderToImportFrom.SelectedPath;
                 IEnumerable<string> files = Directory.EnumerateFiles(selectedPath, "*_*", SearchOption.AllDirectories);
 
+                BulkImportResult bulkImportResult = new BulkImportResult();
                 if (0 < files.Count()) {
-                    var test = pak;
                     foreach (string absolutFilePath in files) {
                         string relativeFilePath = absolutFilePath.Replace(selectedPath + "\\", "");
                         string pakFilePath = relativeFilePath.Replace(".dds", ".tga.dds");
 
                         if (pak.Contents.Contains(pakFilePath)) {
-                            // do import for this file
-                            this.executeSingleFileImport(absolutFilePath, relativeFilePath, pakFilePath);
+                            this.executeSingleFileImport(absolutFilePath, relativeFilePath, pakFilePath, bulkImportResult);
+                        } else {
+                            bulkImportResult.ignoredFiles.Add(relativeFilePath);
                         }
                     }
                 }
 
-                MessageBox.Show("Successfully imported all files from" + selectedPath, "Import complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // TODO Fix: File import current fails. The preview thumbnail is rendered but the file doesn't get imported and saved!
+                string message = "Imported files from: " + selectedPath + "\n\n";
+                message += bulkImportResult.getResultString();
+                MessageBox.Show(message, "Import complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
             Cursor.Current = Cursors.Default;
@@ -422,7 +426,6 @@ namespace AlienPAK
                     return node;
                 }
 
-                // recursive search
                 TreeNode foundNode = findRecursiveTreeNodeByPath(node.Nodes, fullPath);
                 if (foundNode != null) {
                     return foundNode;
@@ -433,12 +436,17 @@ namespace AlienPAK
         }
 
         /* Executes an import for a single file. Code taken from @see this.ReplaceSelectedFile() */
-        private void executeSingleFileImport(string absoluteFilePath, string relativeFilePath, string pakFilePath) {
+        private void executeSingleFileImport(string absoluteFilePath, string relativeFilePath, string pakFilePath, BulkImportResult bulkImportResult) {
             TreeNode currentTreeNode = this.findRecursiveTreeNodeByPath(FileTree.Nodes, pakFilePath);
+            if (null == currentTreeNode) {
+                bulkImportResult.ignoredFiles.Add(relativeFilePath);
+                return;
+            }
 
             TreeItemType nodeType = ((TreeItem)currentTreeNode.Tag).Item_Type;
             string nodeVal = ((TreeItem)currentTreeNode.Tag).String_Value;
 
+            bool importSuccessful = true;
             switch (nodeType) {
                 case TreeItemType.EXPORTABLE_FILE:
                     //TODO: refactor
@@ -468,6 +476,7 @@ namespace AlienPAK
                                     part = content?.ToTEX4Part(out texture.Format, part);
                                     if (part == null) {
                                         MessageBox.Show("Please select a DX10 DDS image!\nIf you have converted this DDS yourself, you've converted it wrong - try using a tool like Nvidia Texture Tools Exporter.\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        importSuccessful = false;
                                         break;
                                     }
                                     if (texture?.tex_HighRes?.Content != null)
@@ -479,6 +488,7 @@ namespace AlienPAK
                                 }
                                 //TODO: implement this!!!! (into import new above too)
                                 MessageBox.Show("PNG/JPG image import conversion is not currently supported!\nAffected file: " + relativeFilePath, "WIP", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                                importSuccessful = false;
                                 break;
                                 ScratchImage img = TexHelper.Instance.LoadFromWICFile(absoluteFilePath, WIC_FLAGS.FORCE_RGB).GenerateMipMaps(TEX_FILTER_FLAGS.DEFAULT, 10); /* Was using 11, but gives remainders - going for 10 */
                                 ScratchImage imgDecom = img.Compress(DXGI_FORMAT.BC7_UNORM, TEX_COMPRESS_FLAGS.BC7_QUICK, 0.5f); //TODO use baseFormat
@@ -486,17 +496,24 @@ namespace AlienPAK
                                 break;
                             default:
                                 MessageBox.Show("This PAK type does not support file importing!\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                bulkImportResult.failedFiles.Add(relativeFilePath);
                                 return;
                         }
                     } catch (Exception ex) {
                         MessageBox.Show(ex.ToString() + "\nAffected file: " + relativeFilePath, "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        importSuccessful = false;
                     }
                     Cursor.Current = Cursors.Default;
                     UpdateSelectedFilePreview();
                     break;
             }
-        }
 
+            if (importSuccessful) {
+                bulkImportResult.successfulFiles.Add(relativeFilePath);
+            } else {
+                bulkImportResult.failedFiles.Add(relativeFilePath);
+            }
+        }
 
         /* Show window to port the selected file to another level */
         PortContent portPopup = null;

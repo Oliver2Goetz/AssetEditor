@@ -252,6 +252,7 @@
     <Compile Include="BulkExportTypeSelection.Designer.cs">
       <DependentUpon>BulkExportTypeSelection.cs</DependentUpon>
     </Compile>
+    <Compile Include="BulkImportResult.cs" />
     <Compile Include="CathodeLibExtensions.cs" />
     <Compile Include="DirectXTexUtility.cs" />
     <Compile Include="Explorer.cs">
