@@ -394,7 +394,7 @@ namespace AlienPAK
             FolderBrowserDialog FolderToImportFrom = new FolderBrowserDialog();
             if (FolderToImportFrom.ShowDialog() == DialogResult.OK) {
                 string selectedPath = FolderToImportFrom.SelectedPath;
-                IEnumerable<string> files = Directory.EnumerateFiles(selectedPath, "*_*", SearchOption.AllDirectories);
+                IEnumerable<string> files = Directory.EnumerateFiles(selectedPath, "*.*", SearchOption.AllDirectories);
 
                 BulkImportResult bulkImportResult = new BulkImportResult();
                 if (0 < files.Count()) {
